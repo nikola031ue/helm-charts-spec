@@ -1,0 +1,10 @@
+apiVersion: v2
+name: shophub-discord
+description: >-
+  One DiscordChannel for platform- and cluster-level alerts (Requirement 4.1), separate from the
+  per-Shop channels. PLACEHOLDER — renders no resources yet; the DiscordChannel arrives in the
+  operator feature. Depends on the shop-operator CRDs.
+type: application
+# Chart version — SemVer, bump on every change, never republish an existing version.
+version: 0.1.0
+appVersion: "0.0.0"

@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.sh text eol=lf
+*.bats text eol=lf
+*.tpl text eol=lf
+*.yaml text eol=lf
+*.txt text eol=lf
+*.tgz binary

@@ -1,0 +1,4 @@
+# Default values for shophub-discord.
+# PLACEHOLDER: no values yet; real content arrives in the operator feature.
+# Never put secrets here — reference Kubernetes Secrets by name (Constitution Principle VI).
+{}

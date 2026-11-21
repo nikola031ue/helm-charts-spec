@@ -1,0 +1,9 @@
+apiVersion: v2
+name: shop-operator
+description: >-
+  Shop operator (CRDs Shop, DiscordChannel, Wallet). PLACEHOLDER — renders no resources yet; the
+  operator Deployment and CRDs arrive in the operator feature.
+type: application
+# Chart version — SemVer, bump on every change, never republish an existing version.
+version: 0.1.0
+appVersion: "0.0.0"

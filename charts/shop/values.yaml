@@ -1,0 +1,4 @@
+# Default values for shop.
+# PLACEHOLDER: no values yet; real content arrives in the Shop feature.
+# Never put secrets here — reference Kubernetes Secrets by name (Constitution Principle VI).
+{}

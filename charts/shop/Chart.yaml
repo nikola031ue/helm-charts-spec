@@ -1,0 +1,9 @@
+apiVersion: v2
+name: shop
+description: >-
+  Shop application (one per ShopHub store). PLACEHOLDER — renders no resources yet. Not installed
+  from kube-state: Shops are runtime state created through the shop-operator (Principle V).
+type: application
+# Chart version — SemVer, bump on every change, never republish an existing version.
+version: 0.1.0
+appVersion: "0.0.0"
