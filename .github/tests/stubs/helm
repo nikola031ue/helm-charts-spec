@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Test stub for helm. Logs every call to $STUB_LOG.
+# `helm show chart <ref> --version <v>` result is chosen per chart via env var
+#   HELM_SHOW_<CHART>   (chart name upper-cased, '-' -> '_'), or HELM_SHOW_DEFAULT:
+#   published | notfound | denied | error
+echo "helm $*" >> "${STUB_LOG:-/dev/null}"
+case "$1 $2" in
+  "show chart")
+    ref="$3"; chart="${ref##*/}"
+    var="HELM_SHOW_$(echo "$chart" | tr 'a-z-' 'A-Z_')"
+    result="${!var:-${HELM_SHOW_DEFAULT:-notfound}}"
+    case "$result" in
+      published) printf 'apiVersion: v2\nname: %s\nversion: %s\n' "$chart" "$5"; exit 0 ;;
+      notfound)  echo "Error: $ref:$5: not found" >&2; exit 1 ;;
+      denied)    echo "Error: failed to authorize: failed to fetch anonymous token: unexpected status from GET request to https://ghcr.io/token: 403 Forbidden" >&2; exit 1 ;;
+      *)         echo "Error: dial tcp: lookup ghcr.io: no such host" >&2; exit 1 ;;
+    esac ;;
+  "package "*)
+    dest="."; while (($#)); do [[ "$1" == "--destination" || "$1" == "-d" ]] && dest="$2"; shift; done
+    touch "$dest/stub-chart.tgz"; echo "Successfully packaged chart"; exit 0 ;;
+  "push "*)
+    echo "Pushed: $3"; exit 0 ;;
+esac
+exit 0

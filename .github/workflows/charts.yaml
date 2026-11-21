@@ -1,0 +1,138 @@
+name: charts
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  layout:
+    name: layout
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tools
+      - name: Check Requirement 5.3 layout
+        run: bash .github/scripts/check-layout.sh
+      - name: Test layout checker
+        run: bats .github/tests/check-layout.bats
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tools
+      - name: helm lint --strict
+        run: for c in charts/*/; do helm lint --strict "$c"; done
+      - name: No secrets in chart defaults
+        run: bash .github/scripts/scan-secrets.sh charts/*/values.yaml
+      - name: Test secrets scanner
+        run: bats .github/tests/scan-secrets.bats
+
+  template:
+    name: template
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tools
+      - name: Render and validate manifests
+        run: |
+          set -euo pipefail
+          for c in charts/*/; do
+            echo "::group::$c"
+            helm template ci "$c" | kubeconform -strict -ignore-missing-schemas -summary
+            helm template ci "$c" | bash .github/scripts/check-images.sh
+            echo "::endgroup::"
+          done
+      - name: No appVersion latest
+        run: bash .github/scripts/check-images.sh --charts charts/*/
+      - name: Test image checker
+        run: bats .github/tests/check-images.bats
+
+  version:
+    name: version
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Changed charts bump SemVer and are unpublished
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: bash .github/scripts/check-version.sh
+      - name: Test version checker and publisher
+        run: |
+          chmod +x .github/tests/stubs/*
+          bats .github/tests/check-version.bats .github/tests/publish.bats
+
+  install:
+    name: install
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tools
+      - uses: helm/kind-action@v1.12.0
+        with:
+          version: v0.27.0
+          cluster_name: ci
+      - name: Install every chart with default values (FR-005)
+        run: |
+          set -euo pipefail
+          for d in charts/*/; do
+            c="$(basename "$d")"
+            helm install "$c" "$d" -n "ci-$c" --create-namespace --wait --timeout 5m
+          done
+          helm list -A
+          bad="$(helm list -A -o json | jq -r '.[] | select(.status != "deployed") | .name')"
+          [ -z "$bad" ] || { echo "not deployed: $bad"; exit 1; }
+
+  publish:
+    name: publish
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [layout, lint, template]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: publish
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tools
+      - name: Log in to GHCR with GITHUB_TOKEN
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GITHUB_TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Push unpublished chart versions (never overwrite)
+        run: bash .github/scripts/publish.sh
+
+  verify-public:
+    name: verify-public
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tools
+      - name: Every chart version is pullable anonymously (SC-005)
+        run: |
+          set -euo pipefail
+          source .github/scripts/lib.sh
+          failed=0
+          for d in charts/*/; do
+            c="$(basename "$d")"; v="$(chart_field "$d/Chart.yaml" version)"
+            if helm show chart "$OCI_BASE/$c" --version "$v" >/dev/null 2>&1; then
+              echo "public: $c $v"
+            else
+              echo "::error::$OCI_BASE/$c:$v is not anonymously pullable — set the GHCR package to Public (quickstart.md 'Make packages public')"
+              failed=1
+            fi
+          done
+          exit $failed

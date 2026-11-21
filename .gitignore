@@ -1,0 +1,8 @@
+*.tgz
+.cr-release-packages/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp

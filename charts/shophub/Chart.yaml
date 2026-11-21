@@ -1,0 +1,10 @@
+apiVersion: v2
+name: shophub
+description: >-
+  ShopHub platform application. PLACEHOLDER — currently the stock `helm create` scaffold running a
+  pinned nginx image; replaced with the real ShopHub frontend/backend in a later feature.
+type: application
+# Chart version — SemVer, bump on every change, never republish an existing version.
+version: 0.1.0
+# Pinned image tag used by the placeholder workload (never "latest").
+appVersion: "1.27.3"

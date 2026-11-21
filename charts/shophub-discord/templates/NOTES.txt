@@ -1,0 +1,2 @@
+{{ .Chart.Name }} {{ .Chart.Version }} is a PLACEHOLDER chart and created no resources.
+It will hold one DiscordChannel for platform/cluster alerts once the shop-operator CRDs exist.

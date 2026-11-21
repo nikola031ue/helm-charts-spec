@@ -1,0 +1,2 @@
+{{ .Chart.Name }} {{ .Chart.Version }} is a PLACEHOLDER chart and created no resources.
+The operator Deployment and the Shop, DiscordChannel and Wallet CRDs arrive in the operator feature.
