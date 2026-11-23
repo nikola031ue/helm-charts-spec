@@ -1,2 +1,15 @@
-{{ .Chart.Name }} {{ .Chart.Version }} is a PLACEHOLDER chart and created no resources.
-The operator Deployment and the Shop, DiscordChannel and Wallet CRDs arrive in the operator feature.
+{{ .Chart.Name }} {{ .Chart.Version }} installed the shop-operator {{ .Chart.AppVersion }} and the
+Shop, Wallet and DiscordChannel CRDs (shophub.io/v1alpha1).
+
+  kubectl get deploy -n {{ .Release.Namespace }} {{ include "shop-operator.fullname" . }}
+  kubectl get shop,wallet,dch -A
+
+{{- if not .Values.discord.guildID }}
+
+Discord is not configured: DiscordChannels will report DiscordCredentialsMissing. Set
+discord.guildID and create Secret {{ .Values.discord.tokenSecretName }} (key "token") in
+{{ .Release.Namespace }} — see the shop-operator README.
+{{- end }}
+
+CRDs are kept on uninstall (helm.sh/resource-policy: keep) so Shops are never deleted by
+removing the chart.

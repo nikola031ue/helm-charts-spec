@@ -1,4 +1,5 @@
-# Default values for shophub-discord.
-# PLACEHOLDER: no values yet; real content arrives in the operator feature.
+# Default values for shophub-discord (spec 002 FR-025).
 # Never put secrets here — reference Kubernetes Secrets by name (Constitution Principle VI).
-{}
+
+# Discord text channel for platform/cluster alerts: lowercase letters, digits and hyphens.
+channelName: platform-alerts

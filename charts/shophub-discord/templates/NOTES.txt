@@ -1,2 +1,6 @@
-{{ .Chart.Name }} {{ .Chart.Version }} is a PLACEHOLDER chart and created no resources.
-It will hold one DiscordChannel for platform/cluster alerts once the shop-operator CRDs exist.
+{{ .Chart.Name }} {{ .Chart.Version }} created DiscordChannel {{ .Values.channelName }} in {{ .Release.Namespace }}.
+
+  kubectl get dch -n {{ .Release.Namespace }} {{ .Values.channelName }}
+
+Its webhook Secret ({{ .Values.channelName }}-discord-webhook) appears once the shop-operator has
+Discord credentials.

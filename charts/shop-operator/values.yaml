@@ -1,4 +1,31 @@
-# Default values for shop-operator.
-# PLACEHOLDER: no values yet; real content arrives in the operator feature.
+# Default values for shop-operator (spec 002, contracts/charts-and-kube-state.md).
 # Never put secrets here — reference Kubernetes Secrets by name (Constitution Principle VI).
-{}
+
+image:
+  repository: ghcr.io/nikola031ue/shop-operator
+  # Empty means .Chart.AppVersion. Always a pinned SemVer, never "latest".
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# Placeholder Shop application run for every Shop until feature 3 (FR-007). Pinned tag only.
+shopImage:
+  repository: nginx
+  tag: "1.27.3"
+
+discord:
+  # Discord server (guild) ID — not a secret. Empty: DiscordChannels report
+  # DiscordCredentialsMissing.
+  guildID: ""
+  # Name of the Secret in the release namespace holding the bot token under key "token".
+  # Created once by hand (see the shop-operator README); never committed.
+  tokenSecretName: shop-operator-discord
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
+
+nameOverride: ""
+fullnameOverride: ""

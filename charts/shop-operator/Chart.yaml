@@ -1,9 +1,10 @@
 apiVersion: v2
 name: shop-operator
 description: >-
-  Shop operator (CRDs Shop, DiscordChannel, Wallet). PLACEHOLDER — renders no resources yet; the
-  operator Deployment and CRDs arrive in the operator feature.
+  Shop operator for ShopHub (Requirements 3.1, 3.2): installs the operator and the Shop, Wallet
+  and DiscordChannel CRDs (shophub.io/v1alpha1).
 type: application
 # Chart version — SemVer, bump on every change, never republish an existing version.
-version: 0.1.0
-appVersion: "0.0.0"
+version: 0.2.0
+# Operator image version (ghcr.io/nikola031ue/shop-operator).
+appVersion: "0.1.0"
