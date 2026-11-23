@@ -1,0 +1,9 @@
+# Platform alerts channel (FR-025): platform state declared in git, not a user resource.
+apiVersion: shophub.io/v1alpha1
+kind: DiscordChannel
+metadata:
+  name: {{ .Values.channelName }}
+  labels:
+    {{- include "shophub-discord.labels" . | nindent 4 }}
+spec:
+  channelName: {{ .Values.channelName }}

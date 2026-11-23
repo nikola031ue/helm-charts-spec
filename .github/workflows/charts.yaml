@@ -85,13 +85,25 @@ jobs:
       - name: Install every chart with default values (FR-005)
         run: |
           set -euo pipefail
+          # shop-operator first: it installs the CRDs other charts use (spec 002 T021).
+          order=(shop-operator)
           for d in charts/*/; do
             c="$(basename "$d")"
-            helm install "$c" "$d" -n "ci-$c" --create-namespace --wait --timeout 5m
+            [[ "$c" == shop-operator ]] || order+=("$c")
+          done
+          for c in "${order[@]}"; do
+            helm install "$c" "charts/$c" -n "ci-$c" --create-namespace --wait --timeout 5m
+            if [[ "$c" == shop-operator ]]; then
+              kubectl wait --for=condition=Established --timeout=60s \
+                crd/shops.shophub.io crd/wallets.shophub.io crd/discordchannels.shophub.io
+            fi
           done
           helm list -A
           bad="$(helm list -A -o json | jq -r '.[] | select(.status != "deployed") | .name')"
           [ -z "$bad" ] || { echo "not deployed: $bad"; exit 1; }
+          # The operator must run without CNPG/Redis or Discord credentials (research R5, R15).
+          kubectl -n ci-shop-operator rollout status deploy/shop-operator --timeout=60s
+          kubectl -n ci-shophub-discord get dch platform-alerts -o jsonpath='{.status.conditions[0].reason}{"\n"}'
 
   publish:
     name: publish
