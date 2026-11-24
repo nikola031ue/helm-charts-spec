@@ -92,7 +92,11 @@ jobs:
             [[ "$c" == shop-operator ]] || order+=("$c")
           done
           for c in "${order[@]}"; do
-            helm install "$c" "charts/$c" -n "ci-$c" --create-namespace --wait --timeout 5m
+            ns="ci-$c"
+            # The platform alerts channel lives in the operator's namespace: operator 0.3.0
+            # reconciles DiscordChannels only there and in its shops namespace (spec 004 FR-026).
+            [[ "$c" == shophub-discord ]] && ns=ci-shop-operator
+            helm install "$c" "charts/$c" -n "$ns" --create-namespace --wait --timeout 5m
             if [[ "$c" == shop-operator ]]; then
               kubectl wait --for=condition=Established --timeout=60s \
                 crd/shops.shophub.io crd/wallets.shophub.io crd/discordchannels.shophub.io
@@ -103,7 +107,24 @@ jobs:
           [ -z "$bad" ] || { echo "not deployed: $bad"; exit 1; }
           # The operator must run without CNPG/Redis or Discord credentials (research R5, R15).
           kubectl -n ci-shop-operator rollout status deploy/shop-operator --timeout=60s
-          kubectl -n ci-shophub-discord get dch platform-alerts -o jsonpath='{.status.conditions[0].reason}{"\n"}'
+          # Reconciled without Discord credentials: the reason proves the operator sees it.
+          reason=""
+          for _ in $(seq 30); do
+            reason="$(kubectl -n ci-shop-operator get dch platform-alerts -o jsonpath='{.status.conditions[0].reason}')"
+            [ -n "$reason" ] && break
+            sleep 2
+          done
+          echo "platform-alerts: $reason"
+          [ "$reason" = DiscordCredentialsMissing ] || { echo "platform-alerts was not reconciled"; exit 1; }
+          # Namespaced permissions only (spec 004 FR-026, closes 002 R-1).
+          if kubectl get clusterrolebinding -o json | jq -e '.items[] | select(.subjects[]? | .kind == "ServiceAccount" and .namespace == "ci-shop-operator")' >/dev/null; then
+            echo "shop-operator has a ClusterRoleBinding"; exit 1
+          fi
+          sa=system:serviceaccount:ci-shop-operator:shop-operator
+          [ "$(kubectl auth can-i list secrets -n shops --as "$sa")" = yes ]
+          [ "$(kubectl auth can-i list secrets -n default --as "$sa")" = no ]
+          [ "$(kubectl auth can-i list secrets -A --as "$sa")" = no ]
+          [ "$(kubectl auth can-i create ingresses.networking.k8s.io -n shops --as "$sa")" = yes ]
 
   publish:
     name: publish
