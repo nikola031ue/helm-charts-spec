@@ -36,7 +36,7 @@ spec:
             - --ingress-class={{ .Values.ingressClassName }}
             - --ingress-namespace={{ .Values.ingressNamespace }}
             - --shophub-namespace={{ .Values.shophubNamespace }}
-            - --trusted-proxy-cidrs={{ .Values.trustedProxyCIDRs }}
+            - --trusted-proxy-host={{ .Values.trustedProxyHost }}
           env:
             # The operator reads the Discord token Secret from its own namespace.
             - name: POD_NAMESPACE
