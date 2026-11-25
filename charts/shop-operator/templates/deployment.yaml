@@ -31,6 +31,13 @@ spec:
             - --shop-image-tag={{ .Values.shopImage.tag }}
             - --discord-guild-id={{ .Values.discord.guildID }}
             - --discord-token-secret={{ .Values.discord.tokenSecretName }}
+            - --watch-namespace={{ .Values.shopsNamespace }}
+            - --shop-domain={{ .Values.shopDomain }}
+            - --ingress-class={{ .Values.ingressClassName }}
+            - --ingress-namespace={{ .Values.ingressNamespace }}
+            - --shophub-namespace={{ .Values.shophubNamespace }}
+            - --shophub-pod-selector={{ $sel := list }}{{ range $k, $v := .Values.shophubPodLabels }}{{ $sel = append $sel (printf "%s=%s" $k $v) }}{{ end }}{{ join "," $sel }}
+            - --trusted-proxy-host={{ .Values.trustedProxyHost }}
           env:
             # The operator reads the Discord token Secret from its own namespace.
             - name: POD_NAMESPACE

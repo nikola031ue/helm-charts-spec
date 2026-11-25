@@ -1,0 +1,11 @@
+# The shops namespace (spec 004 FR-026): Shops created by ShopHub live here, and only here.
+# Kept on uninstall so removing the chart never deletes Shops or their data.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.shopsNamespace }}
+  labels:
+    shophub.io/shops: "true"
+    {{- include "shop-operator.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep

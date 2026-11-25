@@ -20,6 +20,28 @@ discord:
   # Created once by hand (see the shop-operator README); never committed.
   tokenSecretName: shop-operator-discord
 
+# Namespace scoping and per-Shop routing (operator 0.3.0, spec 004 FR-021, FR-026).
+# The only namespace whose Shops and Wallets are reconciled. The chart creates it (label
+# shophub.io/shops: "true") and keeps it on uninstall, so removing the chart never deletes Shops.
+# The operator gets a Role there and in its own namespace (platform alerts DiscordChannel);
+# nothing cluster-wide.
+shopsNamespace: shops
+# A Shop is served at https://<shop>.<shopDomain>; the entry point's default certificate must
+# cover *.<shopDomain>.
+shopDomain: shops.localhost
+# IngressClass of every Shop Ingress.
+ingressClassName: traefik
+# The Shop NetworkPolicy admits TCP 80 only from the entry point namespace and, in the ShopHub
+# namespace, only from pods carrying all of shophubPodLabels (the shophub chart's app pods).
+ingressNamespace: traefik
+shophubNamespace: shophub
+shophubPodLabels:
+  app.kubernetes.io/name: shophub
+  app.kubernetes.io/instance: shophub
+# DNS name whose addresses are the only proxies the shop app trusts (TRUSTED_PROXY_HOST): the
+# headless Service in front of the Traefik pods. Empty means the app trusts no proxy.
+trustedProxyHost: traefik-proxies.traefik.svc.cluster.local
+
 resources:
   requests:
     cpu: 50m

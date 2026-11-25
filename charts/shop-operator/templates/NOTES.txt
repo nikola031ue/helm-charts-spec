@@ -2,7 +2,11 @@
 Shop, Wallet and DiscordChannel CRDs (shophub.io/v1alpha1).
 
   kubectl get deploy -n {{ .Release.Namespace }} {{ include "shop-operator.fullname" . }}
-  kubectl get shop,wallet,dch -A
+  kubectl get shop,wallet,dch -n {{ .Values.shopsNamespace }}
+
+Only Shops and Wallets in namespace {{ .Values.shopsNamespace }} are reconciled; DiscordChannels
+also in {{ .Release.Namespace }} (platform alerts channel). Each Shop is served at
+https://<shop>.{{ .Values.shopDomain }} through IngressClass {{ .Values.ingressClassName }}.
 
 {{- if not .Values.discord.guildID }}
 
