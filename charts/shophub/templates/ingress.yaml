@@ -1,4 +1,6 @@
 {{- if .Values.ingress.enabled -}}
+# No tls block: Traefik serves every websecure route with its default certificate (kube-state
+# README "Local HTTPS"), and redirects plain HTTP to HTTPS.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -10,34 +12,44 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- with .Values.ingress.className }}
-  ingressClassName: {{ . }}
-  {{- end }}
-  {{- if .Values.ingress.tls }}
-  tls:
-    {{- range .Values.ingress.tls }}
-    - hosts:
-        {{- range .hosts }}
-        - {{ . | quote }}
-        {{- end }}
-      secretName: {{ .secretName }}
-    {{- end }}
-  {{- end }}
+  ingressClassName: {{ .Values.ingress.className }}
   rules:
-    {{- range .Values.ingress.hosts }}
-    - host: {{ .host | quote }}
+    - host: {{ .Values.host | quote }}
       http:
         paths:
-          {{- range .paths }}
-          - path: {{ .path }}
-            {{- with .pathType }}
-            pathType: {{ . }}
-            {{- end }}
+          - path: /
+            pathType: Prefix
             backend:
               service:
-                name: {{ include "shophub.fullname" $ }}
+                name: {{ include "shophub.fullname" . }}
                 port:
-                  number: {{ $.Values.service.port }}
-          {{- end }}
-    {{- end }}
+                  number: {{ .Values.service.port }}
+{{- end }}
+{{- if .Values.networkPolicy.enabled }}
+---
+# Who may reach the app pods: only the Traefik pods, on the app port. The database pods are not
+# selected, so the app still reaches them; egress is not restricted (Kubernetes API, the shops'
+# Services). Rendered here, not in networkpolicy.yaml, because Requirement 5.3 fixes the files.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "shophub.fullname" . }}
+  labels:
+    {{- include "shophub.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "shophub.selectorLabels" . | nindent 6 }}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.traefikNamespace }}
+          podSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.traefikPodLabels | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.service.targetPort }}
 {{- end }}

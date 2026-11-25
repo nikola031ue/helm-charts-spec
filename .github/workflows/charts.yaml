@@ -53,6 +53,27 @@ jobs:
       - name: Test image checker
         run: bats .github/tests/check-images.bats
 
+  rbac-drift:
+    name: rbac-drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tools
+      # The manifest the shophub k3s RBAC tests assert (spec 004 T014), from shophub's main.
+      - uses: actions/checkout@v4
+        with:
+          repository: nikola031ue/shophub-spec
+          ref: main
+          path: shophub
+          persist-credentials: false
+          sparse-checkout: tests/ShopHub.Api.Tests/Integration/K3s/Manifests
+      - name: Chart RBAC equals the tested manifest (spec 004 T023)
+        run: |
+          bash .github/scripts/check-shophub-rbac.sh charts/shophub \
+            shophub/tests/ShopHub.Api.Tests/Integration/K3s/Manifests/shophub-rbac.yaml
+      - name: Test drift checker
+        run: bats .github/tests/check-shophub-rbac.bats
+
   version:
     name: version
     if: github.event_name == 'pull_request'
@@ -82,6 +103,12 @@ jobs:
         with:
           version: v0.27.0
           cluster_name: ci
+      - name: CloudNativePG operator (the shophub chart's database; same version as kube-state)
+        run: |
+          set -euo pipefail
+          helm install cnpg oci://ghcr.io/cloudnative-pg/charts/cloudnative-pg --version 0.29.2 \
+            -n cnpg-system --create-namespace --wait --timeout 5m
+          kubectl wait --for=condition=Established --timeout=60s crd/clusters.postgresql.cnpg.io
       - name: Install every chart with default values (FR-005)
         run: |
           set -euo pipefail
@@ -125,11 +152,31 @@ jobs:
           [ "$(kubectl auth can-i list secrets -n default --as "$sa")" = no ]
           [ "$(kubectl auth can-i list secrets -A --as "$sa")" = no ]
           [ "$(kubectl auth can-i create ingresses.networking.k8s.io -n shops --as "$sa")" = yes ]
+          # ShopHub (spec 004 T023): both replicas ready against its CNPG database, and its
+          # ServiceAccount may do exactly what the Role grants, in the shops namespace only.
+          kubectl -n ci-shophub rollout status deploy/shophub --timeout=120s
+          kubectl -n ci-shophub get networkpolicy shophub
+          if kubectl get clusterrolebinding -o json | jq -e '.items[] | select(.subjects[]? | .kind == "ServiceAccount" and .namespace == "ci-shophub")' >/dev/null; then
+            echo "shophub has a ClusterRoleBinding"; exit 1
+          fi
+          sa=system:serviceaccount:ci-shophub:shophub
+          for verb in get list watch create patch delete; do
+            for r in shops.shophub.io wallets.shophub.io discordchannels.shophub.io; do
+              [ "$(kubectl auth can-i "$verb" "$r" -n shops --as "$sa")" = yes ] || { echo "shophub cannot $verb $r"; exit 1; }
+            done
+          done
+          [ "$(kubectl auth can-i update shops.shophub.io -n shops --as "$sa")" = no ]
+          [ "$(kubectl auth can-i get secrets -n shops --as "$sa")" = yes ]
+          [ "$(kubectl auth can-i list secrets -n shops --as "$sa")" = no ]
+          [ "$(kubectl auth can-i watch secrets -n shops --as "$sa")" = no ]
+          [ "$(kubectl auth can-i get secrets -n ci-shophub --as "$sa")" = no ]
+          [ "$(kubectl auth can-i create shops.shophub.io -n default --as "$sa")" = no ]
+          [ "$(kubectl auth can-i create pods -n shops --as "$sa")" = no ]
 
   publish:
     name: publish
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [layout, lint, template]
+    needs: [layout, lint, template, rbac-drift]
     runs-on: ubuntu-latest
     permissions:
       contents: read
