@@ -31,9 +31,13 @@ shopsNamespace: shops
 shopDomain: shops.localhost
 # IngressClass of every Shop Ingress.
 ingressClassName: traefik
-# The Shop NetworkPolicy admits TCP 80 only from these two namespaces.
+# The Shop NetworkPolicy admits TCP 80 only from the entry point namespace and, in the ShopHub
+# namespace, only from pods carrying all of shophubPodLabels (the shophub chart's app pods).
 ingressNamespace: traefik
 shophubNamespace: shophub
+shophubPodLabels:
+  app.kubernetes.io/name: shophub
+  app.kubernetes.io/instance: shophub
 # DNS name whose addresses are the only proxies the shop app trusts (TRUSTED_PROXY_HOST): the
 # headless Service in front of the Traefik pods. Empty means the app trusts no proxy.
 trustedProxyHost: traefik-proxies.traefik.svc.cluster.local
