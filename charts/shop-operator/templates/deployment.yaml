@@ -38,6 +38,16 @@ spec:
             - --shophub-namespace={{ .Values.shophubNamespace }}
             - --shophub-pod-selector={{ $sel := list }}{{ range $k, $v := .Values.shophubPodLabels }}{{ $sel = append $sel (printf "%s=%s" $k $v) }}{{ end }}{{ join "," $sel }}
             - --trusted-proxy-host={{ .Values.trustedProxyHost }}
+            - --operator-pod-selector={{ $op := list }}{{ range $k, $v := (include "shop-operator.selectorLabels" . | fromYaml) }}{{ $op = append $op (printf "%s=%s" $k $v) }}{{ end }}{{ join "," (sortAlpha $op) }}
+            - --payments-token-address={{ .Values.payments.tokenAddress }}
+            - --payments-chain-id={{ .Values.payments.chainId | int64 }}
+            - --payments-confirmations={{ .Values.payments.confirmations | int64 }}
+            - --payments-poll-interval={{ .Values.payments.pollInterval }}
+            - --payments-logs-block-range={{ .Values.payments.logsBlockRange | int64 }}
+            - --payments-order-minutes={{ .Values.payments.orderPaymentMinutes | int64 }}
+            - --payments-explorer-tx-url={{ .Values.payments.explorerTxUrl }}
+            - --payments-rpc-secret={{ .Values.payments.rpcSecretName }}
+            - --payments-stall-after={{ .Values.payments.stallAfter }}
           env:
             # The operator reads the Discord token Secret from its own namespace.
             - name: POD_NAMESPACE

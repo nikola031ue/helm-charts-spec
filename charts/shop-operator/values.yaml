@@ -7,10 +7,10 @@ image:
   tag: ""
   pullPolicy: IfNotPresent
 
-# Placeholder Shop application run for every Shop until feature 3 (FR-007). Pinned tag only.
+# The shop application run for every Shop (spec 003, 005). Pinned tag only.
 shopImage:
-  repository: nginx
-  tag: "1.27.3"
+  repository: ghcr.io/nikola031ue/shop
+  tag: "0.3.0"
 
 discord:
   # Discord server (guild) ID — not a secret. Empty: DiscordChannels report
@@ -41,6 +41,37 @@ shophubPodLabels:
 # DNS name whose addresses are the only proxies the shop app trusts (TRUSTED_PROXY_HOST): the
 # headless Service in front of the Traefik pods. Empty means the app trusts no proxy.
 trustedProxyHost: traefik-proxies.traefik.svc.cluster.local
+
+# Crypto payments (spec 005, operator 0.4.0). Public settings only: the provider endpoint URL
+# carries an API key and lives in a Secret made by hand (rpcSecretName, key "url"), never here.
+payments:
+  # mUSDT token contract on the chain below. Empty turns payments and the chain watcher off
+  # (Wallets report PaymentsWatching=False/TokenNotConfigured; shops refuse checkout).
+  tokenAddress: ""
+  chainId: 11155111
+  # Blocks that must follow a transfer's block before it counts.
+  confirmations: 6
+  pollInterval: 12s
+  # Most blocks one log query covers; free provider plans limit it.
+  logsBlockRange: 10
+  orderPaymentMinutes: 30
+  explorerTxUrl: https://sepolia.etherscan.io/tx/
+  # Secret in the release namespace whose key "url" is the provider endpoint. Created by hand.
+  rpcSecretName: shop-operator-rpc
+  # A Wallet whose chain reading is further behind than this reports PaymentsWatching=Stalled.
+  stallAfter: 5m
+
+# Spec 005 D-4: a ValidatingAdmissionPolicy that refuses deleting a Shop in shopsNamespace
+# unless it carries ShopHub's shophub.io/delete-requested annotation. Kubernetes' namespace
+# controller and garbage collector are exempt, so deleting the namespace never hangs. Needs
+# Kubernetes 1.30+. Roll ShopHub 0.3.0 out first: older ShopHub deletes without the annotation.
+shopDeleteGuard:
+  enabled: true
+
+# Spec 005 research R13: an explicit egress allowance for the operator pod (DNS, HTTPS/API
+# server, the shops' internal port 8081), so a later default-deny can't stop payment detection.
+networkPolicy:
+  enabled: true
 
 resources:
   requests:

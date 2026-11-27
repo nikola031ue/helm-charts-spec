@@ -1,0 +1,47 @@
+{{- if .Values.shopDeleteGuard.enabled }}
+# Spec 005 D-4 (contracts/operator.md "Shop deletion guard"): only ShopHub deletes Shops. A DELETE
+# of a Shop without the shophub.io/delete-requested annotation, which ShopHub writes right before
+# its delete, is refused by the API server. Kubernetes' own cleanup (namespace controller,
+# garbage collector) is exempt, so deleting the shops namespace or a teardown never hangs.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: {{ include "shop-operator.fullname" . }}-shop-delete-guard
+  labels:
+    {{- include "shop-operator.labels" . | nindent 4 }}
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["shophub.io"]
+        apiVersions: ["v1alpha1"]
+        operations: ["DELETE"]
+        resources: ["shops"]
+  matchConditions:
+    - name: not-a-cluster-controller
+      expression: >-
+        !(request.userInfo.username in [
+          'system:serviceaccount:kube-system:namespace-controller',
+          'system:serviceaccount:kube-system:generic-garbage-collector',
+          'system:kube-controller-manager'])
+  validations:
+    - expression: >-
+        has(oldObject.metadata.annotations) &&
+        'shophub.io/delete-requested' in oldObject.metadata.annotations &&
+        oldObject.metadata.annotations['shophub.io/delete-requested'] == 'true'
+      message: Shops are deleted through ShopHub; this Shop has no shophub.io/delete-requested annotation.
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: {{ include "shop-operator.fullname" . }}-shop-delete-guard
+  labels:
+    {{- include "shop-operator.labels" . | nindent 4 }}
+spec:
+  policyName: {{ include "shop-operator.fullname" . }}-shop-delete-guard
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: {{ .Values.shopsNamespace }}
+{{- end }}

@@ -102,6 +102,8 @@ jobs:
       - uses: helm/kind-action@v1.12.0
         with:
           version: v0.27.0
+          # Pinned: the shop-operator chart's delete guard needs ValidatingAdmissionPolicy (1.30+).
+          node_image: kindest/node:v1.32.2
           cluster_name: ci
       - name: CloudNativePG operator (the shophub chart's database; same version as kube-state)
         run: |
@@ -172,6 +174,33 @@ jobs:
           [ "$(kubectl auth can-i get secrets -n ci-shophub --as "$sa")" = no ]
           [ "$(kubectl auth can-i create shops.shophub.io -n default --as "$sa")" = no ]
           [ "$(kubectl auth can-i create pods -n shops --as "$sa")" = no ]
+      - name: Shop delete guard and egress policy (shop-operator 0.5.0, spec 005 D-4, R13)
+        run: |
+          set -euo pipefail
+          kubectl -n ci-shop-operator get networkpolicy shop-operator-egress
+          shop() {
+            kubectl apply -f - <<EOF
+          apiVersion: shophub.io/v1alpha1
+          kind: Shop
+          metadata: {name: $1, namespace: shops}
+          spec: {shopName: Guard test, availability: standard, database: standard, walletRef: {name: w}, discordChannelRef: {name: ch}}
+          EOF
+          }
+          # A delete without ShopHub's annotation is refused by the API server.
+          shop guard-test
+          if out="$(kubectl -n shops delete shop guard-test --wait=false 2>&1)"; then
+            echo "an unannotated Shop delete was allowed: $out"; exit 1
+          fi
+          echo "$out"
+          echo "$out" | grep -q "Shops are deleted through ShopHub"
+          # With the annotation (what ShopHub 0.3.0 writes first) it goes through.
+          kubectl -n shops annotate shop guard-test shophub.io/delete-requested=true
+          kubectl -n shops delete shop guard-test --timeout=60s
+          # Kubernetes' own cleanup is exempt: deleting the namespace that still holds an
+          # unannotated Shop finishes (namespace controller, garbage collector).
+          shop guard-ns-test
+          kubectl delete namespace shops --timeout=90s
+          if kubectl get namespace shops 2>/dev/null; then echo "namespace shops did not go away"; exit 1; fi
 
   publish:
     name: publish
